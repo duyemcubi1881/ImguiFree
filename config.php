@@ -6,7 +6,7 @@ define('FUNLINK_API_KEY', '65d4f6c0bb16481fbe5f6b69f9922bcb');
 define('FUNLINK_API_URL', 'https://private.funlink.io/api/cong-khai/tao-lien-ket');
 
 // 2. Backend Server Configuration (Render)
-define('BACKEND_BASE_URL', 'https://aovduy.onrender.com');
+define('BACKEND_BASE_URL', 'https://aovduy-1-1cg0.onrender.com');
 define('BACKEND_USERNAME', 'duyemcubi188');
 define('BACKEND_PASSWORD', 'ngoducduy1107@');
 
@@ -24,7 +24,7 @@ if ($current_dir === '/') {
 define('BASE_URL', $protocol . $domain . $current_dir);
 
 // Key duration settings
-define('KEY_DURATION_HOURS', 4);
+define('KEY_DURATION_HOURS', 6);
 define('SESSION_LIFETIME_MINUTES', 30); // Thời gian token chờ có hiệu lực để vượt link (phút)
 define('MAX_CLAIMS_PER_DAY', 2); // Số lần tối đa một IP được lấy key trong ngày
 

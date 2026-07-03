@@ -178,54 +178,271 @@ if ($action === 'getlink') {
         header("Location: index.php?status=success&token=" . urlencode($token));
         exit;
     } else {
-        // Tạo link callback
-        $callback_url = BASE_URL . '/index.php?action=verify&token=' . urlencode($token);
+        // Cập nhật thời gian bắt đầu tải màn hình bảo mật vào CSDL
+        update_session_time($token);
         
-        // Kiểm tra cấu hình FUNLINK
-        if (FUNLINK_API_KEY === 'YOUR_FUNLINK_API_KEY_HERE' || empty(FUNLINK_API_KEY)) {
-            // Chế độ test không cần FUNLINK, tự động tạo key luôn
-            $res = generate_key_from_backend();
-            if ($res['status'] === 'success') {
-                claim_session($token, $res['key']);
-                header("Location: index.php?status=success&token=" . urlencode($token));
+        // Hiển thị màn hình kiểm tra bảo mật (Anti-Bypass Protection)
+        ?>
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Đang kiểm tra an toàn...</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+          <style>
+            *, ::before, ::after { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              background: #020205;
+              color: #f3f4f6;
+              font-family: 'Plus Jakarta Sans', sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              overflow: hidden;
+            }
+            /* Neon Background Glows */
+            .bg-glow-1 {
+              position: absolute; width: 400px; height: 400px;
+              background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
+              top: 15%; left: 10%; z-index: 1; pointer-events: none;
+            }
+            .bg-glow-2 {
+              position: absolute; width: 450px; height: 450px;
+              background: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%);
+              bottom: 15%; right: 10%; z-index: 1; pointer-events: none;
+            }
+            .card {
+              position: relative; z-index: 10;
+              width: 100%; max-width: 440px;
+              padding: 40px 30px;
+              background: rgba(8, 8, 20, 0.65);
+              border: 1px solid rgba(255, 255, 255, 0.08);
+              border-radius: 20px;
+              box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+              backdrop-filter: blur(16px);
+              text-align: center;
+            }
+            .shield-icon {
+              width: 80px; height: 80px;
+              margin: 0 auto 24px auto;
+              background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+              border-radius: 50%;
+              display: flex; align-items: center; justify-content: center;
+              box-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
+              animation: pulse 2s infinite;
+            }
+            .shield-icon svg { width: 40px; height: 40px; color: #fff; }
+            h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+            p { font-size: 13px; color: #9ca3af; margin-bottom: 24px; line-height: 1.6; }
+            
+            /* Status Loader */
+            .loader-container {
+              position: relative;
+              width: 100%; height: 6px;
+              background: rgba(255, 255, 255, 0.05);
+              border-radius: 10px;
+              overflow: hidden;
+              margin-bottom: 20px;
+            }
+            .loader-bar {
+              height: 100%; width: 0%;
+              background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+              box-shadow: 0 0 10px #8b5cf6;
+              border-radius: 10px;
+              transition: width 0.1s linear;
+            }
+            .status-text {
+              font-family: 'JetBrains Mono', monospace;
+              font-size: 12px;
+              color: #a78bfa;
+              min-height: 18px;
+            }
+            
+            @keyframes pulse {
+              0% { transform: scale(1); box-shadow: 0 0 30px rgba(139, 92, 246, 0.4); }
+              50% { transform: scale(1.05); box-shadow: 0 0 45px rgba(6, 182, 212, 0.5); }
+              100% { transform: scale(1); box-shadow: 0 0 30px rgba(139, 92, 246, 0.4); }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="bg-glow-1"></div>
+          <div class="bg-glow-2"></div>
+          
+          <div class="card">
+            <div class="shield-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+              </svg>
+            </div>
+            
+            <h2>Đang kiểm tra bảo mật...</h2>
+            <p>Vui lòng chờ trong giây lát để hệ thống xác minh trình duyệt của bạn nhằm tránh các công cụ tự động bypass.</p>
+            
+            <div class="loader-container">
+              <div class="loader-bar" id="progressBar"></div>
+            </div>
+            <div class="status-text" id="statusText">Khởi tạo môi trường...</div>
+          </div>
+          
+          <script>
+            const statuses = [
+              { time: 0, text: "Khởi tạo môi trường bảo mật..." },
+              { time: 1000, text: "Kiểm tra tính tương thích trình duyệt..." },
+              { time: 2200, text: "Quét các công cụ tự động (Bypass tools)..." },
+              { time: 3500, text: "Thiết lập đường truyền an toàn..." },
+              { time: 4500, text: "Yêu cầu tạo liên kết rút gọn..." }
+            ];
+            
+            const progressBar = document.getElementById('progressBar');
+            const statusText = document.getElementById('statusText');
+            
+            let currentProgress = 0;
+            const duration = 5000; // 5 seconds
+            const stepTime = 50;
+            const increment = (stepTime / duration) * 100;
+            
+            // Cập nhật thanh tiến trình
+            const progressInterval = setInterval(() => {
+              currentProgress += increment;
+              if (currentProgress >= 100) {
+                currentProgress = 100;
+                clearInterval(progressInterval);
+              }
+              progressBar.style.width = currentProgress + '%';
+            }, stepTime);
+            
+            // Cập nhật trạng thái chữ
+            statuses.forEach(status => {
+              setTimeout(() => {
+                statusText.innerText = status.text;
+              }, status.time);
+            });
+            
+            // Gửi yêu cầu AJAX tạo link sau 5 giây
+            setTimeout(() => {
+              fetch('index.php?action=getlink_ajax&token=<?php echo urlencode($token); ?>', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded'
+                }
+              })
+              .then(response => response.json())
+              .then(data => {
+                if (data.status === 'success') {
+                  statusText.innerText = "Chuyển hướng đến Funlink...";
+                  setTimeout(() => {
+                    window.location.replace(data.url);
+                  }, 500);
+                } else {
+                  // Hiển thị lỗi
+                  document.querySelector('.card').innerHTML = `
+                    <div class="shield-icon" style="background: linear-gradient(135deg, #ef4444, #f97316); box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); animation: none;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+                      </svg>
+                    </div>
+                    <h2 style="color:#fca5a5;">Lỗi Bảo Mật</h2>
+                    <p style="color:#ef4444; margin-bottom: 24px;">\${data.message}</p>
+                    <a href="index.php?token=<?php echo urlencode($token); ?>" style="display:inline-block; padding:10px 24px; background:#8b5cf6; color:#fff; text-decoration:none; border-radius:8px; font-weight:600; font-size:13px; box-shadow:0 0 15px rgba(139,92,246,0.35);">Quay lại trang chủ</a>
+                  `;
+                }
+              })
+              .catch(err => {
+                document.querySelector('.card').innerHTML = `
+                  <div class="shield-icon" style="background: linear-gradient(135deg, #ef4444, #f97316); box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); animation: none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+                    </svg>
+                  </div>
+                  <h2 style="color:#fca5a5;">Lỗi Kết Nối</h2>
+                  <p style="margin-bottom: 24px;">Không thể kết nối với máy chủ của bạn để xác minh. Vui lòng tải lại trang và thử lại sau.</p>
+                  <a href="index.php?token=<?php echo urlencode($token); ?>" style="display:inline-block; padding:10px 24px; background:#8b5cf6; color:#fff; text-decoration:none; border-radius:8px; font-weight:600; font-size:13px; box-shadow:0 0 15px rgba(139,92,246,0.35);">Thử lại</a>
+                `;
+              });
+            }, 5000);
+          </script>
+        </body>
+        </html>
+        <?php
+        exit;
+    }
+}
+else if ($action === 'getlink_ajax') {
+    header('Content-Type: application/json');
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        echo json_encode(['status' => 'error', 'message' => 'Yêu cầu không hợp lệ.']);
+        exit;
+    }
+    
+    if (!$session) {
+        echo json_encode(['status' => 'error', 'message' => 'Phiên làm việc không tồn tại hoặc đã hết hạn.']);
+        exit;
+    }
+    
+    if ($session['status'] === 'claimed') {
+        echo json_encode(['status' => 'success', 'url' => 'index.php?status=success&token=' . urlencode($token)]);
+        exit;
+    }
+    
+    // THỜI GIAN CHECK CHỐNG BYPASS: Người dùng phải ở màn hình bảo mật ít nhất 4 giây
+    $time_elapsed = time() - $session['updated_at'];
+    if ($time_elapsed < 4) {
+        echo json_encode(['status' => 'error', 'message' => 'Yêu cầu bị từ chối: Phát hiện công cụ tự động bypass (Bot). Hãy thực hiện bình thường!']);
+        exit;
+    }
+    
+    // Kiểm tra cấu hình FUNLINK
+    if (FUNLINK_API_KEY === 'YOUR_FUNLINK_API_KEY_HERE' || empty(FUNLINK_API_KEY)) {
+        // Chế độ test không cần FUNLINK, tự động tạo key luôn
+        $res = generate_key_from_backend();
+        if ($res['status'] === 'success') {
+            claim_session($token, $res['key']);
+            echo json_encode(['status' => 'success', 'url' => 'index.php?status=success&token=' . urlencode($token)]);
+            exit;
+        } else {
+            echo json_encode(['status' => 'error', 'message' => $res['message']]);
+            exit;
+        }
+    } else {
+        // Cập nhật lại thời gian tương tác gần nhất của session để bắt đầu đếm 25s cho lúc verify
+        update_session_time($token);
+        
+        // Gọi API của funlink.io để rút gọn link
+        $callback_url = BASE_URL . '/index.php?action=verify&token=' . urlencode($token);
+        $api_request_url = FUNLINK_API_URL . '?apikey=' . urlencode(FUNLINK_API_KEY) . '&url=' . urlencode($callback_url);
+        
+        // Thực hiện gọi cURL
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $api_request_url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+        $response = curl_exec($ch);
+        
+        if ($response === false) {
+            $curl_err = curl_error($ch);
+            curl_close($ch);
+            echo json_encode(['status' => 'error', 'message' => 'Không thể kết nối máy chủ Funlink (Lỗi cURL: ' . $curl_err . '). Vui lòng thử lại sau!']);
+            exit;
+        } else {
+            curl_close($ch);
+            $res_data = json_decode($response, true);
+            
+            if ($res_data && isset($res_data['id'])) {
+                $short_url = 'https://funlink.io/' . $res_data['id'];
+                echo json_encode(['status' => 'success', 'url' => $short_url]);
                 exit;
             } else {
-                $error = $res['message'];
+                $err_detail = isset($res_data['message']) ? $res_data['message'] : htmlspecialchars(substr($response, 0, 150));
+                echo json_encode(['status' => 'error', 'message' => 'Lỗi tạo link rút gọn từ Funlink: ' . $err_detail]);
+                exit;
             }
-        } else {
-            // Cập nhật thời gian tương tác gần nhất vào CSDL trước khi chuyển hướng người dùng đi vượt link
-            update_session_time($token);
-            
-            // Gọi API của funlink.io để rút gọn link
-            $api_request_url = FUNLINK_API_URL . '?apikey=' . urlencode(FUNLINK_API_KEY) . '&url=' . urlencode($callback_url);
-            
-            // Thực hiện gọi cURL
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $api_request_url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-            $response = curl_exec($ch);
-            
-            if ($response === false) {
-                $curl_err = curl_error($ch);
-                curl_close($ch);
-                $error_msg = "Không thể kết nối máy chủ Funlink (Lỗi cURL: " . $curl_err . "). Vui lòng tải lại trang!";
-            } else {
-                curl_close($ch);
-                $res_data = json_decode($response, true);
-                
-                if ($res_data && isset($res_data['id'])) {
-                    $short_url = 'https://funlink.io/' . $res_data['id'];
-                    header("Location: " . $short_url);
-                    exit;
-                } else {
-                    $error_msg = "Phản hồi lỗi từ Funlink: " . htmlspecialchars(substr($response, 0, 300));
-                }
-            }
-            $error = "Lỗi hệ thống: " . $error_msg;
         }
     }
 } 

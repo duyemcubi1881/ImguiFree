@@ -69,6 +69,8 @@ function generate_key_from_backend() {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $login_payload);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_COOKIEJAR, $cookie_file); // Lưu cookie vào file
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
@@ -98,6 +100,8 @@ function generate_key_from_backend() {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $create_payload);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_COOKIEFILE, $cookie_file); // Gửi kèm cookie đã lưu
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',

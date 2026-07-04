@@ -6,7 +6,7 @@ define('FUNLINK_API_KEY', '65d4f6c0bb16481fbe5f6b69f9922bcb');
 define('FUNLINK_API_URL', 'https://private.funlink.io/api/cong-khai/tao-lien-ket');
 
 // 2. Backend Server Configuration (Render)
-define('BACKEND_BASE_URL', 'https://aovduy-1-1cg0.onrender.com');
+define('BACKEND_BASE_URL', 'https://api3-422w.onrender.com.com');
 define('BACKEND_USERNAME', 'duyemcubi188');
 define('BACKEND_PASSWORD', 'ngoducduy1107@');
 

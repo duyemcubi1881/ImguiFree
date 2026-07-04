@@ -415,37 +415,75 @@ else if ($action === 'getlink_ajax') {
         // Cập nhật lại thời gian tương tác gần nhất của session để bắt đầu đếm 25s cho lúc verify
         update_session_time($token);
         
-        // Gọi API của funlink.io để rút gọn link
         $callback_url = BASE_URL . '/index.php?action=verify&token=' . urlencode($token);
-        $api_request_url = FUNLINK_API_URL . '?apikey=' . urlencode(FUNLINK_API_KEY) . '&url=' . urlencode($callback_url);
         
-        // Thực hiện gọi cURL
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $api_request_url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-        $response = curl_exec($ch);
+        // Đếm số lần IP này đã nhận key thành công hôm nay
+        $ip = $session['ip_address'];
+        $claim_count = get_ip_claim_count_today($ip);
         
-        if ($response === false) {
-            $curl_err = curl_error($ch);
-            curl_close($ch);
-            echo json_encode(['status' => 'error', 'message' => 'Không thể kết nối máy chủ Funlink (Lỗi cURL: ' . $curl_err . '). Vui lòng thử lại sau!']);
-            exit;
-        } else {
-            curl_close($ch);
-            $res_data = json_decode($response, true);
+        if ($claim_count < 2) {
+            // Dưới 2 lần: Sử dụng FUNLINK
+            $api_request_url = FUNLINK_API_URL . '?apikey=' . urlencode(FUNLINK_API_KEY) . '&url=' . urlencode($callback_url);
             
-            if ($res_data && isset($res_data['id'])) {
-                $short_url = 'https://funlink.io/' . $res_data['id'];
-                echo json_encode(['status' => 'success', 'url' => $short_url]);
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $api_request_url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+            $response = curl_exec($ch);
+            
+            if ($response === false) {
+                $curl_err = curl_error($ch);
+                curl_close($ch);
+                echo json_encode(['status' => 'error', 'message' => 'Không thể kết nối máy chủ Funlink (Lỗi cURL: ' . $curl_err . '). Vui lòng thử lại sau!']);
                 exit;
             } else {
-                $err_detail = isset($res_data['message']) ? $res_data['message'] : htmlspecialchars(substr($response, 0, 150));
-                echo json_encode(['status' => 'error', 'message' => 'Lỗi tạo link rút gọn từ Funlink: ' . $err_detail]);
+                curl_close($ch);
+                $res_data = json_decode($response, true);
+                
+                if ($res_data && isset($res_data['id'])) {
+                    $short_url = 'https://funlink.io/' . $res_data['id'];
+                    echo json_encode(['status' => 'success', 'url' => $short_url]);
+                    exit;
+                } else {
+                    $err_detail = isset($res_data['message']) ? $res_data['message'] : htmlspecialchars(substr($response, 0, 150));
+                    echo json_encode(['status' => 'error', 'message' => 'Lỗi tạo link rút gọn từ Funlink: ' . $err_detail]);
+                    exit;
+                }
+            }
+        } else {
+            // Từ lần thứ 3 trở lên: Sử dụng Nhapma.com
+            $api_request_url = NHAPMA_API_URL . '?token=' . urlencode(NHAPMA_API_KEY) . '&url=' . urlencode($callback_url);
+            
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $api_request_url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+            $response = curl_exec($ch);
+            
+            if ($response === false) {
+                $curl_err = curl_error($ch);
+                curl_close($ch);
+                echo json_encode(['status' => 'error', 'message' => 'Không thể kết nối máy chủ Nhapma (Lỗi cURL: ' . $curl_err . '). Vui lòng thử lại sau!']);
                 exit;
+            } else {
+                curl_close($ch);
+                $res_data = json_decode($response, true);
+                
+                if ($res_data && isset($res_data['status']) && $res_data['status'] === 'success' && isset($res_data['shortenedUrl'])) {
+                    $short_url = $res_data['shortenedUrl'];
+                    echo json_encode(['status' => 'success', 'url' => $short_url]);
+                    exit;
+                } else {
+                    $err_detail = isset($res_data['message']) ? $res_data['message'] : (isset($res_data['error']) ? $res_data['error'] : htmlspecialchars(substr($response, 0, 150)));
+                    echo json_encode(['status' => 'error', 'message' => 'Lỗi tạo link rút gọn từ Nhapma: ' . $err_detail]);
+                    exit;
+                }
             }
         }
     }

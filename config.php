@@ -5,6 +5,10 @@
 define('FUNLINK_API_KEY', '65d4f6c0bb16481fbe5f6b69f9922bcb'); 
 define('FUNLINK_API_URL', 'https://private.funlink.io/api/cong-khai/tao-lien-ket');
 
+// 1.2. NHAPMA Configuration
+define('NHAPMA_API_KEY', '00481ff4-378e-4ef7-a996-209e35386123'); // Nhập mã token của bạn
+define('NHAPMA_API_URL', 'https://service.nhapma.com/api');
+
 // 2. Backend Server Configuration (Render)
 define('BACKEND_BASE_URL', 'https://api3-422w.onrender.com');
 define('BACKEND_USERNAME', 'duyemcubi188');
@@ -24,7 +28,7 @@ if ($current_dir === '/') {
 define('BASE_URL', $protocol . $domain . $current_dir);
 
 // Key duration settings
-define('KEY_DURATION_HOURS', 6);
+define('KEY_DURATION_HOURS', 2);
 define('SESSION_LIFETIME_MINUTES', 30); // Thời gian token chờ có hiệu lực để vượt link (phút)
 define('MAX_CLAIMS_PER_DAY', 2); // Số lần tối đa một IP được lấy key trong ngày
 

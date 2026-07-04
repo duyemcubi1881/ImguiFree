@@ -48,7 +48,7 @@ function curl_get($url) {
 }
 
 // Hàm gọi Backend Render để tạo Key 3 giờ
-function generate_key_from_backend() {
+function generate_key_from_backend($hwid) {
     if (!extension_loaded('curl')) {
         return ['status' => 'error', 'message' => 'PHP cURL extension chưa được kích hoạt trên hosting.'];
     }
@@ -91,7 +91,9 @@ function generate_key_from_backend() {
     // 2. Tạo Key
     $create_url = BACKEND_BASE_URL . '/api/createkey';
     $create_payload = json_encode([
-        'hours' => KEY_DURATION_HOURS
+        'hours' => KEY_DURATION_HOURS,
+        'hwid' => $hwid,
+        'key_type' => 'single_device'
     ]);
     
     $ch = curl_init();
@@ -163,7 +165,8 @@ if ($is_blocked) {
 // Tự động tạo token nếu truy cập trang chủ không có token
 if (empty($token) && empty($action) && !$is_blocked) {
     $token = bin2hex(random_bytes(16));
-    create_session($token, $ip);
+    $hwid = isset($_GET['hwid']) ? trim($_GET['hwid']) : '';
+    create_session($token, $ip, $hwid);
     header("Location: index.php?token=" . urlencode($token));
     exit;
 }
@@ -182,8 +185,18 @@ if ($action === 'getlink') {
         header("Location: index.php?status=success&token=" . urlencode($token));
         exit;
     } else {
-        // Cập nhật thời gian bắt đầu tải màn hình bảo mật vào CSDL
-        update_session_time($token);
+        // Cập nhật HWID từ URL hoặc POST gửi lên
+        $hwid = isset($_GET['hwid']) ? trim($_GET['hwid']) : (isset($_POST['hwid']) ? trim($_POST['hwid']) : '');
+        if (!empty($hwid)) {
+            update_session_hwid($token, $hwid);
+            $session['hwid'] = $hwid;
+        }
+
+        if (empty($session['hwid'])) {
+            $error = "Vui lòng cung cấp HWID của thiết bị trước khi vượt link.";
+        } else {
+            // Cập nhật thời gian bắt đầu tải màn hình bảo mật vào CSDL
+            update_session_time($token);
         
         // Hiển thị màn hình kiểm tra bảo mật (Anti-Bypass Protection)
         ?>
@@ -402,7 +415,7 @@ else if ($action === 'getlink_ajax') {
     // Kiểm tra cấu hình FUNLINK
     if (FUNLINK_API_KEY === 'YOUR_FUNLINK_API_KEY_HERE' || empty(FUNLINK_API_KEY)) {
         // Chế độ test không cần FUNLINK, tự động tạo key luôn
-        $res = generate_key_from_backend();
+        $res = generate_key_from_backend($session['hwid']);
         if ($res['status'] === 'success') {
             claim_session($token, $res['key']);
             echo json_encode(['status' => 'success', 'url' => 'index.php?status=success&token=' . urlencode($token)]);
@@ -499,7 +512,7 @@ else if ($action === 'verify') {
             $error = "Hệ thống phát hiện bạn quay lại quá nhanh (hoàn thành trước thời gian tối thiểu 25s). Vui lòng thực hiện lại đúng các bước hướng dẫn!";
         } else if ($session['status'] === 'pending') {
             // Gọi sang backend tạo key luôn
-            $res = generate_key_from_backend();
+            $res = generate_key_from_backend($session['hwid']);
             if ($res['status'] === 'success') {
                 claim_session($token, $res['key']);
                 header("Location: index.php?status=success&token=" . urlencode($token));
@@ -1087,12 +1100,29 @@ body {
         <div class="timer-lbl" id="countdownText">Vui lòng chờ giây lát...</div>
       </div>
 
+      <!-- Hiển thị thông tin HWID -->
+      <div style="margin-bottom: 24px; text-align: center; width: 100%;">
+        <?php if (!empty($session['hwid'])): ?>
+          <div style="font-size: 11px; font-family: var(--font-mono); color: var(--secondary); letter-spacing: 1px; line-height: 1.6; background: rgba(6, 182, 212, 0.05); padding: 10px 14px; border: 1px solid rgba(6, 182, 212, 0.15); border-radius: 10px;">
+            THIẾT BỊ ĐÃ XÁC NHẬN:<br>
+            <span style="color: var(--text); font-weight: 700; font-size: 13px; word-break: break-all;"><?php echo htmlspecialchars($session['hwid']); ?></span>
+          </div>
+        <?php else: ?>
+          <div style="font-size: 12px; color: #fca5a5; margin-bottom: 10px; font-weight: 600; font-family: var(--font-sans); display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; color: #fca5a5;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg> Chưa nhận diện được HWID thiết bị!
+          </div>
+          <input type="text" id="hwid_input" placeholder="Dán HWID từ App của bạn vào đây..." 
+                 style="width: 100%; padding: 14px 16px; background: rgba(2, 2, 8, 0.6); border: 1px solid var(--border); border-radius: var(--radius); color: #fff; text-align: center; font-family: var(--font-mono); font-size: 13px; outline: none; transition: all 0.3s;"
+                 oninput="validateHwidInput()">
+        <?php endif; ?>
+      </div>
+
       <?php if ($step === 1): ?>
-        <a id="actionBtn" href="#" class="btn-cyber">
+        <a id="actionBtn" href="#" class="btn-cyber" style="pointer-events: none; opacity: 0.5;">
           <span>Hệ thống đang tải...</span>
         </a>
       <?php else: ?>
-        <button id="actionBtn" class="btn-cyber">
+        <button id="actionBtn" class="btn-cyber" style="pointer-events: none; opacity: 0.5;">
           <span>Hệ thống đang tải...</span>
         </button>
       <?php endif; ?>
@@ -1102,6 +1132,9 @@ body {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/></svg> Chỉ dẫn
         </div>
         <ul class="instruction-list">
+          <?php if (empty($session['hwid'])): ?>
+            <li style="color: #fca5a5;">Mở app sao chép HWID và dán vào ô phía trên để bắt đầu.</li>
+          <?php endif; ?>
           <?php if ($step === 1): ?>
             <li>Vượt link của <strong>funlink.io</strong> để kích hoạt hệ thống lưu token xác minh.</li>
           <?php else: ?>
@@ -1116,10 +1149,52 @@ body {
       <script>
         document.addEventListener("DOMContentLoaded", function() {
           let count = 5;
+          let timerFinished = false;
           const countEl = document.getElementById("countdownVal");
           const textEl = document.getElementById("countdownText");
           const btn = document.getElementById("actionBtn");
           const token = "<?php echo urlencode($token); ?>";
+          const hasHwid = <?php echo !empty($session['hwid']) ? 'true' : 'false'; ?>;
+          
+          window.validateHwidInput = function() {
+            const input = document.getElementById("hwid_input");
+            if (input) {
+              if (input.value.trim().length >= 3) {
+                input.style.borderColor = "var(--secondary)";
+                input.style.boxShadow = "0 0 10px var(--secondary-glow)";
+              } else {
+                input.style.borderColor = "var(--border)";
+                input.style.boxShadow = "none";
+              }
+            }
+
+            if (!timerFinished) return;
+            
+            const hwidVal = input ? input.value.trim() : "";
+            if (hasHwid || (hwidVal && hwidVal.length >= 3)) {
+              btn.classList.add("active");
+              btn.style.pointerEvents = "auto";
+              btn.style.opacity = "1";
+              btn.querySelector("span").textContent = "Bắt đầu vượt link";
+              if (!btn.querySelector("svg")) {
+                const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                svgIcon.setAttribute("viewBox", "0 0 24 24");
+                svgIcon.setAttribute("fill", "none");
+                svgIcon.setAttribute("stroke-width", "2.5");
+                svgIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>';
+                btn.appendChild(svgIcon);
+              }
+              btn.href = "index.php?action=getlink&token=" + token + "&hwid=" + encodeURIComponent(hwidVal);
+            } else {
+              btn.classList.remove("active");
+              btn.style.pointerEvents = "none";
+              btn.style.opacity = "0.5";
+              btn.querySelector("span").textContent = "Nhập HWID để bắt đầu";
+              const svg = btn.querySelector("svg");
+              if (svg) svg.remove();
+              btn.href = "#";
+            }
+          };
           
           const timer = setInterval(() => {
             count--;
@@ -1130,19 +1205,24 @@ body {
               countEl.textContent = "✓";
               countEl.classList.add("ready");
               textEl.textContent = "HỆ THỐNG ĐÃ SẴN SÀNG!";
+              timerFinished = true;
               
-              // Unlock neon button
-              btn.classList.add("active");
-              btn.querySelector("span").textContent = "Bắt đầu vượt link";
-              btn.href = "index.php?action=getlink&token=" + token;
-              
-              // Add arrow icon dynamically to the active button
-              const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-              svgIcon.setAttribute("viewBox", "0 0 24 24");
-              svgIcon.setAttribute("fill", "none");
-              svgIcon.setAttribute("stroke-width", "2.5");
-              svgIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>';
-              btn.appendChild(svgIcon);
+              if (hasHwid) {
+                btn.classList.add("active");
+                btn.querySelector("span").textContent = "Bắt đầu vượt link";
+                btn.href = "index.php?action=getlink&token=" + token;
+                btn.style.pointerEvents = "auto";
+                btn.style.opacity = "1";
+                
+                const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                svgIcon.setAttribute("viewBox", "0 0 24 24");
+                svgIcon.setAttribute("fill", "none");
+                svgIcon.setAttribute("stroke-width", "2.5");
+                svgIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>';
+                btn.appendChild(svgIcon);
+              } else {
+                validateHwidInput();
+              }
             }
           }, 1000);
         });

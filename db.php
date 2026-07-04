@@ -18,6 +18,7 @@ function db_connect() {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             token TEXT UNIQUE NOT NULL,
             ip_address TEXT NOT NULL,
+            hwid TEXT DEFAULT '',
             status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'verified', 'claimed'
             key_value TEXT DEFAULT NULL,
             current_step INTEGER NOT NULL DEFAULT 1, -- Bước hiện tại của người dùng (1, 2, 3, 4, 5)
@@ -31,6 +32,13 @@ function db_connect() {
         } catch (PDOException $e) {
             $db->exec("ALTER TABLE sessions ADD COLUMN current_step INTEGER NOT NULL DEFAULT 1");
         }
+
+        // Kiểm tra nâng cấp bảng nếu cột hwid chưa tồn tại
+        try {
+            $db->query("SELECT hwid FROM sessions LIMIT 1");
+        } catch (PDOException $e) {
+            $db->exec("ALTER TABLE sessions ADD COLUMN hwid TEXT DEFAULT ''");
+        }
         
         return $db;
     } catch (PDOException $e) {
@@ -38,15 +46,30 @@ function db_connect() {
     }
 }
 
-function create_session($token, $ip) {
+function create_session($token, $ip, $hwid = '') {
     $db = db_connect();
     $time = time();
     $ip = $ip ? $ip : 'UNKNOWN'; // Đảm bảo IP không bao giờ rỗng hoặc null
-    $stmt = $db->prepare("INSERT INTO sessions (token, ip_address, status, current_step, created_at, updated_at) VALUES (:token, :ip, 'pending', 1, :created_at, :updated_at)");
+    $stmt = $db->prepare("INSERT INTO sessions (token, ip_address, hwid, status, current_step, created_at, updated_at) VALUES (:token, :ip, :hwid, 'pending', 1, :created_at, :updated_at)");
     return $stmt->execute([
         ':token' => $token,
         ':ip' => $ip,
+        ':hwid' => $hwid,
         ':created_at' => $time,
+        ':updated_at' => $time
+    ]);
+}
+
+/**
+ * Cập nhật HWID thiết bị của session
+ */
+function update_session_hwid($token, $hwid) {
+    $db = db_connect();
+    $time = time();
+    $stmt = $db->prepare("UPDATE sessions SET hwid = :hwid, updated_at = :updated_at WHERE token = :token");
+    return $stmt->execute([
+        ':token' => $token,
+        ':hwid' => $hwid,
         ':updated_at' => $time
     ]);
 }
